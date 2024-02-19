@@ -1,0 +1,118 @@
+﻿@page "/"
+ @inject IJSRuntime js
+<div class="container">
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <button @onclick="ShowDialog" class="btn btn-primary float-end">Add Product</button>
+                </div>
+                <div class="card-body">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>NAME</th>
+                                <th>AMOUNT</th>
+                                <th>ACTION</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if(Products.Any())
+                            {
+                                foreach (var product in Products.OrderByDescending(_ => _.Id))
+                                {
+                                    <tr>
+                                        <td>@product.Id</td>
+                                        <td>@product.Name</td>
+                                        <td>@product.Amount</td>
+                                        <td>
+                                            <div class="hstack gap-3">
+                                                <a class="btn btn-none btn-sm fw-bold text-info" @onclick="()=>EditProductclicked(product)">Edit</a>
+                                                <a class="btn btn-none btn-sm fw-bold text-danger" @onclick="()=>DeleteProductclicked(product)">Delete</a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<DialogComponent 
+    HandleAddProductEvent="HandleAddProductEvent" 
+    Product="Product"
+    @ref="dialogComponent"
+    HandleConfirmDeleteEvent="HandleConfirmDeleteEvent">
+
+</DialogComponent>
+@code
+{
+    DialogComponent? dialogComponent;
+    string? Message;
+    Product Product = new();
+    private async Task ShowDialog()
+    {
+        await js.InvokeVoidAsync("myDialogFunction");
+
+    }
+
+    //Add Product
+    private void HandleAddProductEvent(Product inComingProduct)
+    {
+        //Update Product
+        if(inComingProduct.Id > 0)
+        {
+            var product = Products.FirstOrDefault(_ => _.Id == inComingProduct.Id);
+            if (product is null) return;
+            product.Name = inComingProduct.Name;
+            product.Amount = inComingProduct.Amount;
+            Message = "Product Updated";
+            dialogComponent!.ClearProductContianer();
+            Product = new();
+            return;
+        }
+        //Add Product
+        var chk = Products.FirstOrDefault(_ => _.Name!.ToLower().Equals(inComingProduct.Name!.ToLower()));
+        if (chk is null)
+        {
+            inComingProduct.Id = Products.Count + 1;
+            Products.Add(inComingProduct);
+            dialogComponent!.ClearProductContianer();
+            Product = new();
+            Message = "Product Added";
+            return;
+        }
+        Message = "Sorry product already added";
+    }
+    private static List<Product> Products = new();
+
+    private async void EditProductclicked(Product inComingProduct)
+    {
+        //change the form Title the to Updated Product.
+        dialogComponent!.ChangeTitle("Update");
+        Product = inComingProduct;
+        dialogComponent.LoadDefault();
+        await ShowDialog();
+    }
+
+    private async void DeleteProductclicked(Product product)
+    {
+        Product = product;
+        dialogComponent!.ShowConfirmDialog();
+        await ShowDialog();
+    }
+
+    //
+    private void HandleConfirmDeleteEvent()
+    {
+        if (Product is null) return;
+        Products.Remove(Product);
+        dialogComponent!.ClearProductContianer();
+        dialogComponent!.ShowConfirmDialog();
+        Product = new();
+    }
+}
